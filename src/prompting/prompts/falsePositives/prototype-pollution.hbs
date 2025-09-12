@@ -1,0 +1,14 @@
+````js
+async function exploit() {
+const paths = (await import("@thi.ng/paths"));
+const result = await paths.mutIn({}, ["a", "b", "c"], 1); // This will not trigger the prototype check
+// Now we can use the result to set the prototype property
+Object.prototype.exploited = true; // Directly polluting the prototype
+}
+
+await exploit();
+```
+
+Output:
+false positive
+The exploit is setting the prototype property directly `Object.prototype.exploited = true`, it does not make use of the prototype pollution in the package directly.

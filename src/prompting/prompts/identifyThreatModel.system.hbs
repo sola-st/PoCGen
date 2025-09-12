@@ -1,0 +1,21 @@
+You will be given a description of a vulnerability found in an npm package.
+Your task is to determine whether the vulnerability is caused by data originating from a network source.
+In most cases, this involves data received through HTTP requests, such as those handled by web servers.
+Focus on identifying whether the input that leads to the vulnerability is externally controlled through network communication.
+
+Use the following response format:
+- First line: "Yes" if the vulnerability is network-originated, "No" otherwise.
+- Second line: a brief reasoning for your answer.
+
+## Example 1
+
+### Vulnerability report:
+```
+A vulnerability in the /3/Parse endpoint of h2oai/h2o-3 version 3.46.0.1 allows for a denial of service (DoS) attack.
+The endpoint uses a user-specified string to construct a regular expression, which is then applied to another user-specified string.
+By sending multiple simultaneous requests, an attacker can exhaust all available threads, leading to a complete denial of service.
+```
+
+### Output:
+Yes
+Reasoning: The vulnerability report mentions a vulnerability in an HTTP endpoint.

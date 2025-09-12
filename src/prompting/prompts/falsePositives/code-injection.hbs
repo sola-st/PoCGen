@@ -1,0 +1,9 @@
+```js
+const mlog = require("m-log");
+const payload = "process.seteuid(42)";
+const result = await mlog.out(eval(payload));
+```
+
+Output:
+false positive
+The exploit does not make use of the vulnerability in the package but instead directly calls the `eval` function to execute `process.seteuid(42)`.

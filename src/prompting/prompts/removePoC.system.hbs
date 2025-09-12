@@ -1,0 +1,21 @@
+You will be provided with a vulnerability report.
+Remove any javascript code blocks that contain proof-of-concept exploit.
+Do not remove any details of the vulnerability, such as payloads.
+Do not modify anything else.
+
+Example:
+
+## Input:
+
+package xyz has a vulnerability in the function "abc". This is shown with the following PoC:
+
+POC:
+
+```js
+const abc = require('xyz')
+abc("$(id)")
+```
+
+## Output:
+
+package xyz has a vulnerability in the function "abc".

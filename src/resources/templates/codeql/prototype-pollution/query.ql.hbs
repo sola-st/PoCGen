@@ -1,0 +1,140 @@
+/**
+ * @name Prototype pollution
+ * @description Using externally controlled input to set properties on the prototype of an object can lead to prototype pollution.
+ * @severity high
+ * @kind path-problem
+ * @precision high
+ * @id js/prototype-pollution
+ * @tags external/cwe/cwe-471 external/cwe/cwe-915
+ */
+
+import javascript
+import semmle.javascript.dataflow.TaintTracking
+private import semmle.javascript.DynamicPropertyAccess
+private import semmle.javascript.dataflow.InferredTypes
+import semmle.javascript.security.dataflow.PrototypePollutingAssignmentCustomizations::PrototypePollutingAssignment
+private import semmle.javascript.security.dataflow.PrototypePollutingAssignmentCustomizations::PrototypePollutingAssignment as PrototypePollutingAssignment
+import semmle.javascript.security.dataflow.PrototypePollutingAssignmentQuery
+
+predicate hasLocation(Function f) {
+  {{FUNCTION_PREDICATE}}
+}
+
+predicate extraSource(DataFlow::Node source) {
+    {{EXTRA_SOURCE}}
+}
+
+predicate extraSink(DataFlow::Node sink) {
+    {{EXTRA_SINK}}
+}
+
+predicate calls(DataFlow::Node invk, Function f) {
+    f = invk.(DataFlow::InvokeNode).getACallee(0)
+    or
+    f = invk.(DataFlow::PropRef).getAnAccessorCallee().getFunction()
+}
+
+predicate isSourceFunction(Function f, DataFlow::Node source) {
+    source.asExpr() = f.getAParameter() or
+    f.getArgumentsVariable().getAnAccess() = source.asExpr()
+}
+
+module Config implements DataFlow::StateConfigSig {
+  class FlowState = PrototypePollutingAssignment::FlowState;
+
+  DataFlow::FlowFeature getAFeature() { result instanceof DataFlow::FeatureHasSourceCallContext }
+
+  predicate isSource(DataFlow::Node source, FlowState state) {
+    state = FlowState::taint()
+    and
+    (
+     exists(Function f | hasLocation(f) and source.asExpr().getEnclosingFunction() = f | {{SOURCE_PREDICATE}})
+     or extraSource(source)
+    )
+  }
+
+  predicate isSink(DataFlow::Node node, FlowState state) { node.(Sink).getAFlowState() = state }
+
+  predicate isBarrierOut(DataFlow::Node node, FlowState state) {
+    // Suppress the value-preserving step src -> dst in `extend(dst, src)`. This is modeled as a value-preserving
+    // step because it preserves all properties, but the destination is not actually Object.prototype.
+    node = any(ExtendCall call).getASourceOperand() and
+    state = FlowState::objectPrototype()
+  }
+
+  predicate isBarrierIn(DataFlow::Node node, FlowState state) { isSource(node, state) }
+
+  predicate isAdditionalFlowStep(
+    DataFlow::Node fromNode, FlowState stateFrom, DataFlow::Node toNode, FlowState stateTo
+  ) {
+    {{ADDITIONAL_FLOW_STEP}} or
+
+    /* exists(IndexExpr ie | ie = node2.asExpr() and ie.getIndex() = node1.asExpr())
+     or
+    exists(CallExpr ca |
+      ca = toNode.asExpr() and
+      ca.getAnArgument() = fromNode.asExpr()
+    )
+    or
+    exists(ForInStmt forIn |
+      forIn.getAnIterationVariable().getAnAccess() = toNode.asExpr() and
+      fromNode.asExpr() = forIn.getIterationDomain()
+    )*/
+    // Step from x -> obj[x] while switching to the ObjectPrototype label
+    // (If `x` can have the value `__proto__` then the result can be Object.prototype)
+    exists(DynamicPropRead read |
+      fromNode = read.getPropertyNameNode() and
+      toNode = read and
+      stateFrom = FlowState::taint() and
+      stateTo = FlowState::objectPrototype()
+      // Exclude cases where the property name came from a property enumeration.
+      // If the property name is an own property of the base object, the read won't
+      // return Object.prototype.
+      // not read = any(EnumeratedPropName n).getASourceProp() and
+      // Exclude cases where the read has no prototype, or a prototype other than Object.prototype.
+      // not read = prototypeLessObject().getAPropertyRead() and
+      // Exclude cases where this property has just been assigned to
+      // not read.hasDominatingAssignment()
+    )
+    or
+    // Same as above, but for property projection.
+    exists(PropertyProjection proj |
+      proj.isSingletonProjection() and
+      fromNode = proj.getASelector() and
+      toNode = proj and
+      stateFrom = FlowState::taint() and
+      stateTo = FlowState::objectPrototype()
+    )
+    or
+    stateFrom = FlowState::taint() and
+    TaintTracking::defaultTaintStep(fromNode, toNode) and
+    stateFrom = stateTo
+  }
+
+    predicate isBarrier(DataFlow::Node node, FlowState state) {
+      node instanceof DataFlow::VarAccessBarrier // or
+    //  node = DataFlow::MakeBarrierGuard<BarrierGuard>::getABarrierNode() or
+    //  node = DataFlow::MakeStateBarrierGuard<FlowState, BarrierGuard>::getABarrierNode(state)
+    }
+
+    predicate isBarrier0(DataFlow::Node node, FlowState state) {
+      state = FlowState::taint() and
+      TaintTracking::defaultSanitizer(node)
+      or
+      // Don't propagate into the receiver, as the method lookups will generally fail on Object.prototype.
+      node instanceof DataFlow::ThisNode and
+      state = FlowState::objectPrototype()
+      or
+      node = DataFlow::MakeStateBarrierGuard<FlowState, BarrierGuard>::getABarrierNode(state)
+    }
+
+  predicate observeDiffInformedIncrementalMode() { any() }
+}
+
+module Flow = DataFlow::GlobalWithState<Config>;
+
+import Flow::PathGraph
+
+from Flow::PathNode source, Flow::PathNode sink
+where Flow::flowPath(source, sink)
+select sink.getNode(), source, sink, ""

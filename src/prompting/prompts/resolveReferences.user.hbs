@@ -1,0 +1,19 @@
+## Task:
+You will be given code snippets from the package `{{package.raw}}`.
+User-controlled data is annotated with `tainted` comments.
+Your goal is to figure out functions that are relevant for reaching `{{callExpression}}` in the provided function.
+Functions that influence the dataflow or might perform input validation are the most interesting.
+
+Ignore parameters and functions that are not related to the taint path or do input validation.
+
+The code snippets include line numbers.
+Call the tool `{{ toolName }}` for missing declarations, using:
+
+- The **line number** where the identifier is referenced.
+- The **identifier name** as arguments.
+
+## Snippet:
+
+{{#each snippets}}
+{{this}}
+{{/each}}

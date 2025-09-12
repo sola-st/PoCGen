@@ -1,0 +1,13 @@
+```js
+var git = require("git-lib");
+
+git.add("id").then(function () {
+require("child_process").exec("/usr/bin/genpoc");
+}).catch(function (err) {
+
+});
+```
+
+Output:
+false positive
+The exploit does not make use of the vulnerability in the package but instead uses the Node.js child_process module to achieve command execution.

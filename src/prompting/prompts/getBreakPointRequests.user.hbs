@@ -1,0 +1,19 @@
+You are provided with the coverage information of the function where the flow stops.
+In order to debug the exploit, you can ask for the value of any variable in the code.
+If you need the value of a variable, you can just call the tool with the variable name.
+If you need the result of a function call in the code, you can send the function expression to the tool.
+
+You can submit the debug expressions with the tool: `{{toolName}}`.
+
+{{#if failedExploit}}
+Failed exploit:
+```js
+{{failedExploit}}
+```
+
+The above exploit does not reach the sink in order to {{vulnerabilityType.goal}}.
+{{/if}}
+
+## Source code:
+
+{{taintPathSnippets}}

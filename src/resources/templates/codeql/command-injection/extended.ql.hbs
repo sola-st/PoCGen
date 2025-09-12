@@ -1,0 +1,137 @@
+/**
+ * @id query-ext-api-calls
+ * @name Find all external API calls in the codebase.
+ * @description Find all external API calls in the codebase.
+ * @kind path-problem
+ * @precision low
+ * @problem.severity warning
+ */
+import javascript
+import semmle.javascript.dataflow.TaintTracking
+import semmle.javascript.security.dataflow.ExternalAPIUsedWithUntrustedDataCustomizations
+
+class GlobalProperties extends string {
+  GlobalProperties() {
+    this =
+      [
+        "Object", "Function", "Array", "Number", "parseFloat", "parseInt", "Infinity", "NaN",
+        "undefined", "Boolean", "String", "Symbol", "Date", "Promise", "RegExp", "Error",
+        "AggregateError", "EvalError", "RangeError", "ReferenceError", "SyntaxError", "TypeError",
+        "URIError", "globalThis", "JSON", "Math", "Intl", "ArrayBuffer", "Atomics", "Uint8Array",
+        "Int8Array", "Uint16Array", "Int16Array", "Uint32Array", "Int32Array", "Float32Array",
+        "Float64Array", "Uint8ClampedArray", "BigUint64Array", "BigInt64Array", "DataView", "Map",
+        "BigInt", "Set", "WeakMap", "WeakSet", "Proxy", "Reflect", "FinalizationRegistry",
+        "WeakRef", "decodeURI", "decodeURIComponent", "encodeURI", "encodeURIComponent", "escape",
+        "unescape", "eval", "isFinite", "isNaN", "console", "process", "global", "Buffer",
+        "clearImmediate", "setImmediate", "URL", "URLSearchParams", "DOMException",
+        "AbortController", "AbortSignal", "Event", "EventTarget", "TextEncoder", "TextDecoder",
+        "TransformStream", "TransformStreamDefaultController", "WritableStream",
+        "WritableStreamDefaultController", "WritableStreamDefaultWriter", "ReadableStream",
+        "ReadableStreamDefaultReader", "ReadableStreamBYOBReader", "ReadableStreamBYOBRequest",
+        "ReadableByteStreamController", "ReadableStreamDefaultController",
+        "ByteLengthQueuingStrategy", "CountQueuingStrategy", "TextEncoderStream",
+        "TextDecoderStream", "CompressionStream", "DecompressionStream", "clearInterval",
+        "clearTimeout", "setInterval", "setTimeout", "queueMicrotask", "structuredClone", "atob",
+        "btoa", "BroadcastChannel", "MessageChannel", "MessagePort", "Blob", "File", "Performance",
+        "PerformanceEntry", "PerformanceMark", "PerformanceMeasure", "PerformanceObserver",
+        "PerformanceObserverEntryList", "PerformanceResourceTiming", "performance", "fetch",
+        "FormData", "Headers", "Request", "Response", "MessageEvent", "WebSocket", "Iterator",
+        "SharedArrayBuffer", "WebAssembly", "Navigator", "navigator", "crypto", "Crypto",
+        "CryptoKey", "SubtleCrypto", "CustomEvent", "module", "require", "assert", "async_hooks",
+        "buffer", "child_process", "cluster", "constants", "dgram", "diagnostics_channel", "dns",
+        "domain", "events", "fs", "http", "http2", "https", "inspector", "net", "os", "path",
+        "perf_hooks", "punycode", "querystring", "readline", "repl", "stream", "string_decoder",
+        "sys", "timers", "tls", "trace_events", "tty", "url", "util", "v8", "vm", "wasi",
+        "worker_threads", "zlib", "require", "import"
+      ]
+  }
+}
+
+private predicate isCommonBuiltinMethodName(string name) {
+  exists(ExternalInstanceMemberDecl member |
+    member.getBaseName() in ["Object", "Array", "String"] and
+    name = member.getName()
+  )
+}
+
+class BuiltinInvokeNode extends DataFlow::InvokeNode {
+  BuiltinInvokeNode() {
+    exists(GlobalProperties gp |
+      this.(DataFlow::CallNode).getReceiver().accessesGlobal(gp) or
+      this.(DataFlow::NewNode).accessesGlobal(gp) or
+      this.getCalleeNode().accessesGlobal(gp)
+    )
+    or
+    this.asExpr() instanceof Import
+  }
+}
+
+class UnresolvedCallNode extends DataFlow::InvokeNode {
+  UnresolvedCallNode() { not exists(this.getACallee()) }
+}
+
+// todo: node modules
+class ExternalAPICall extends UnresolvedCallNode {
+  //DataFlow::InvokeNode {
+  ExternalAPICall() {
+    not this instanceof BuiltinInvokeNode and
+    not isCommonBuiltinMethodName(this.(DataFlow::CallNode).getCalleeName()) and
+    (
+      this instanceof UnresolvedCallNode or
+      none()
+      // this instanceof ExternalApiUsedWithUntrustedData::Sink
+    )
+  }
+}
+
+class ExternalSink extends DataFlow::Node {
+  ExternalSink() { exists(ExternalAPICall c | c.getAnArgument() = this) }
+}
+
+predicate hasLocation(Function f) {
+  {{FUNCTION_PREDICATE}}
+}
+
+module Config implements DataFlow::ConfigSig {
+
+  DataFlow::FlowFeature getAFeature() { result instanceof DataFlow::FeatureHasSourceCallContext }
+
+  predicate isSource(DataFlow::Node source) {
+    exists(Function f | hasLocation(f) and source.asExpr().getEnclosingFunction() = f | {{SOURCE_PREDICATE}})
+  }
+
+  predicate isSink(DataFlow::Node sink) {
+
+   sink instanceof ExternalSink
+
+   /* exists(CallExpr ca | ca.getAnArgument() = sink.asExpr()) and
+            (
+              sink instanceof ExternalApiUsedWithUntrustedData::Sink
+              or
+              exists(CallExpr ca | ca.getAnArgument() = sink.asExpr() |
+                not exists(FunctionDeclStmt v | ca.getReceiver() = v.getVariable().getAnAccess())
+
+                not exists(DeclStmt v |
+                  ca.getReceiver() = v.getADecl().getBindingPattern().getAVariable().getAnAccess()
+                  or
+                  ca.getCallee() = v.getADecl().getBindingPattern().getAVariable().getAnAccess()
+                  or
+                  ca.getReceiver() = v.getADecl().getBindingPattern().getAVariable().getAReference()
+                )
+
+              )
+
+            )
+
+            */
+  }
+
+}
+
+module Flow = TaintTracking::Global<Config>;
+
+import Flow::PathGraph
+
+from Flow::PathNode source, Flow::PathNode sink
+where Flow::flowPath(source, sink)
+select sink.getNode(), source, sink, ""

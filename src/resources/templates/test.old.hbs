@@ -1,0 +1,32 @@
+import test from "node:test";
+import assert from 'node:assert';
+import { createRequire } from "node:module";
+
+import {{ validatorName }} from {{ esc validatorImportPath }};
+
+const verifier = new {{ validatorName }}();
+
+async function runExploit() {
+    {{ exploit }}
+}
+
+test('{{ vulnerabilityType.label }} in {{ esc package.raw }} ({{ vulnId }})', async () => {
+    process.removeAllListeners('unhandledRejection')
+    process.removeAllListeners('uncaughtException')
+    process.on("unhandledRejection", () => { });
+    process.on("uncaughtException", () => { });
+
+    const source = {{ esc source }};
+    const nmPath = {{ esc nmPath }};
+
+    global.require = createRequire(nmPath);
+
+    await verifier.setup({source, nmPath});
+    try {
+        await runExploit();
+    } catch (e) {
+        console.error(e)
+    } finally {
+        assert.ok(await verifier.check());
+    }
+});

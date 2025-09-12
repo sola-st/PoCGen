@@ -1,0 +1,30 @@
+import test from "node:test";
+import assert from 'node:assert';
+import { createRequire } from "node:module";
+import { fileURLToPath } from 'url';
+
+// source = {{ esc source }};
+async function runExploit() {
+{{ exploit }}
+}
+
+{{validate}}
+
+test('{{ vulnerabilityType.label }} in {{ esc package.raw }} ({{ advisoryId }})', (t, done) => {
+process.removeAllListeners('unhandledRejection')
+process.removeAllListeners('uncaughtException')
+process.on("unhandledRejection", () => { });
+process.on("uncaughtException", () => { });
+
+global.require = createRequire(import.meta.url);
+global.__dirname = fileURLToPath(import.meta.url);
+
+validate(runExploit, done).then((success) => {
+assert.ok(success);
+done();
+}
+).catch((err) => {
+console.error(err);
+done(err);
+});
+});

@@ -1,0 +1,24 @@
+The package `{{package.name}}` has a known {{vulnerabilityType.label}} vulnerability.
+
+## Vulnerability Report:
+
+```
+{{vulnerabilityDescription}}
+```
+
+## Task:
+
+You will be provided with a vulnerability report and a list of functions.
+The vulnerability report can contain information about the vulnerable function like the function name or vulnerable parameters.
+Your task is to rank these functions based on their potential susceptibility to the vulnerability described in the report.
+
+Use the tool `{{toolName}}` to respond with the indices of the possibly vulnerable functions in the order of their potential susceptibility.
+
+You should ignore functions that are expected to be a {{vulnerabilityType.label}} sink.
+For example, in the case of command injection, a function with the name `exec` and the argument `cmd` will be expected to execute commands and should be ignored.
+
+## Functions:
+
+{{#each candidates}}
+{{@index}}: `{{qualifiedName}}` with signature `{{callable.signature}}` located in {{callable.location.filePath}}:{{callable.location.startLine}}
+{{/each}}

@@ -1,0 +1,42 @@
+diff --git a/deps/v8/src/execution/isolate.cc b/deps/v8/src/execution/isolate.cc
+index c2cc0458bb..71fa918e98 100644
+--- a/deps/v8/src/execution/isolate.cc
++++ b/deps/v8/src/execution/isolate.cc
+@@ -5369,7 +5369,7 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
+   // checking for a prototype that is a JSPrimitiveWrapper. This is a safe
+   // approximation. Using JSPrimitiveWrapper as prototype should be
+   // sufficiently rare.
+-  DCHECK(!IsJSObjectPrototype(*object));
++  // DCHECK(!IsJSObjectPrototype(*object));
+   if (object->map()->is_prototype_map() && (IsJSPrimitiveWrapper(*object))) {
+     Protectors::InvalidateNumberStringNotRegexpLike(this);
+   }
+diff --git a/deps/v8/src/init/bootstrapper.cc b/deps/v8/src/init/bootstrapper.cc
+index 3b151ea3e8..cb3614ce71 100644
+--- a/deps/v8/src/init/bootstrapper.cc
++++ b/deps/v8/src/init/bootstrapper.cc
+@@ -916,7 +916,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
+         "EmptyObjectPrototype");
+     map->set_is_prototype_map(true);
+     // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
+-    map->set_is_immutable_proto(true);
++    map->set_is_immutable_proto(false);
+     object_function_prototype->set_map(*map);
+   }
+ 
+diff --git a/deps/v8/src/regexp/regexp.cc b/deps/v8/src/regexp/regexp.cc
+index 482959a4e6..6af5b56c50 100644
+--- a/deps/v8/src/regexp/regexp.cc
++++ b/deps/v8/src/regexp/regexp.cc
+@@ -807,8 +807,9 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
+     return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
+                                     capture_count, output_registers);
+   } else if (res == RegExp::RE_FALLBACK_TO_EXPERIMENTAL) {
+-    return ExperimentalRegExp::OneshotExec(isolate, regexp, subject,
+-                                           previous_index, last_match_info);
++    PrintF("Falling back to experimental regexp engine\n");
++    isolate->ThrowIllegalOperation();
++    return {};
+   } else if (res == RegExp::RE_EXCEPTION) {
+     DCHECK(isolate->has_exception());
+     return MaybeHandle<Object>();

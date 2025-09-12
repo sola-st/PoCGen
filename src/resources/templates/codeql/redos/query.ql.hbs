@@ -1,0 +1,66 @@
+/**
+ *
+ * @name Regular Expression Denial of Service
+ * @description Regular expressions that are vulnerable to ReDoS can be used to perform a denial of service attack.
+ * @severity high
+ * @kind path-problem
+ * @precision high
+ * @id js/redos
+ * @tags external/cwe/cwe-400
+ *
+ */
+
+import javascript
+import semmle.javascript.dataflow.TaintTracking
+import semmle.javascript.security.regexp.PolynomialReDoSQuery
+
+predicate hasLocation(Function f) {
+  {{FUNCTION_PREDICATE}}
+}
+
+predicate calls(DataFlow::Node invk, Function f) {
+    f = invk.(DataFlow::InvokeNode).getACallee(0)
+    or
+    f = invk.(DataFlow::PropRef).getAnAccessorCallee().getFunction()
+}
+
+predicate isSourceFunction(Function f, DataFlow::Node source) {
+    source.asExpr() = f.getAParameter() or
+    f.getArgumentsVariable().getAnAccess() = source.asExpr()
+}
+
+module Config implements DataFlow::ConfigSig {
+
+  DataFlow::FlowFeature getAFeature() { result instanceof DataFlow::FeatureHasSourceCallContext }
+
+  predicate isSource(DataFlow::Node source) {
+    exists(Function f | hasLocation(f) and source.asExpr().getEnclosingFunction() = f | {{SOURCE_PREDICATE}})
+    or extraSource(source)
+  }
+
+  additional predicate extraSource(DataFlow::Node source) {
+    {{EXTRA_SOURCE}}
+  }
+
+  additional predicate extraSink(DataFlow::Node sink) {
+    {{EXTRA_SINK}}
+  }
+
+  predicate isSink(DataFlow::Node sink) {
+    sink instanceof Sink
+    or extraSink(sink)
+  }
+
+predicate isAdditionalFlowStep(DataFlow::Node fromNode, DataFlow::Node toNode) {
+        {{ADDITIONAL_FLOW_STEP}}
+    }
+
+}
+
+module Flow = TaintTracking::Global<Config>;
+
+import Flow::PathGraph
+
+from Flow::PathNode source, Flow::PathNode sink
+where Flow::flowPath(source, sink)
+select sink.getNode(), source, sink, ""

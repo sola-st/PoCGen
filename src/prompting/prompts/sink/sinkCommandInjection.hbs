@@ -1,0 +1,15 @@
+{
+q: "exec(args.join(' '))",
+a: "the function name \"exec\" indicates a call to an external program",
+correct: true
+},
+{
+q: "system(`echo ${var}`)",
+a: "the argument looks like a shell command",
+correct: true
+},
+{
+q: "fs.readFileSync(file)",
+a: "nodejs modules can be ignored",
+correct: false
+},
