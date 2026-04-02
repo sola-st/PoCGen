@@ -1,13 +1,13 @@
-import {Runner} from "./runner.js";
-import {addLineNumbers, esc, firstNonEmpty, indent, wrapTripleBackticks} from "../utils/utils.js";
+import { Runner } from "./runner.js";
+import { addLineNumbers, esc, firstNonEmpty, indent, wrapTripleBackticks } from "../utils/utils.js";
 import ApiModule from "../analysis/api-explorer/apiModule.js";
 import LocationRange from "../models/locationRange.js";
-import {missingDefinitionTool} from "../model/tools.js";
+import { missingDefinitionTool } from "../model/tools.js";
 import Location from "../models/location.js";
 import CodeQLQueryBuilder from "../analysis/codeql/codeQLQueryBuilder.js";
 import ApiFunction from "../analysis/api-explorer/apiFunction.js";
 import Source from "../models/source.js";
-import {getPrompt} from "../prompting/promptGenerator.js";
+import { getPrompt } from "../prompting/promptGenerator.js";
 import RunnerResult from "./runnerResult.js";
 
 process.on(
@@ -40,7 +40,9 @@ export class RunnerSourceNotExported extends Runner {
       if (this.candidatesByName.length === 0) {
          const isRemoteFlow = await this.isRemoteFlowSource();
          if (isRemoteFlow) {
+            console.info("[Pipeline Status] Starting Remote Flow Exploit Creation (Primary)");
             const res = await this.createExploitRemoteFlow();
+            console.info("[Pipeline Status] Finished Remote Flow Exploit Creation (Primary)");
             if (res) {
                return res;
             }
@@ -57,6 +59,7 @@ export class RunnerSourceNotExported extends Runner {
       if (this.exploitAttempts.length > 0) {
          return null;
       }
+      console.info("[Pipeline Status] Starting Remote Flow Exploit Creation (Fallback)");
       return await this.createExploitRemoteFlow();
    }
 
@@ -75,6 +78,7 @@ export class RunnerSourceNotExported extends Runner {
                extraSourcePredicate: "source instanceof RemoteFlowSource",
             }), this.apiExplorerResults.sources
          );
+         console.info(`[Pipeline Status] Analyzed Remote Flow sources for ${vulnerabilityType.label}`);
          if (sarif.taintPaths.length === 0) {
             sarif = this.codeQL.analyse(
                new CodeQLQueryBuilder({
@@ -214,7 +218,8 @@ export class RunnerSourceNotExported extends Runner {
        * List of statements that may contain references and need to be resolved.
        * @type {NodePath<Node>[]}
        */
-      const toResolve = [this.codeQL.getEnclosingStatement(taintPath.source.callable.location)];
+      const startNode = this.codeQL.getEnclosingStatement(taintPath.source.callable.location);
+      const toResolve = startNode ? [startNode] : [];
 
       while (toResolve.length > 0) {
          const resolveNode = toResolve.pop();
@@ -236,7 +241,7 @@ export class RunnerSourceNotExported extends Runner {
             missingDefinitionTool,
          ]);
          for (const toolCall of toolCalls) {
-            const {referenceLineNumber, identifierName} = toolCall.arguments;
+            const { referenceLineNumber, identifierName } = toolCall.arguments;
             const startColumn = this.codeQL
                .getFileLine(stmtLocation.filePath, referenceLineNumber - 1) // The line numbers in the prompt are 1-based
                .indexOf(identifierName); // 0-based
@@ -256,7 +261,7 @@ export class RunnerSourceNotExported extends Runner {
                sourceContextPrompt += `Declaration of ${identifierName}:\n`;
                for (const refLocation of references) {
                   sourceContextPrompt += `${wrapTripleBackticks(
-                     this.codeQL.extractSourceCode({...refLocation, startColumn: 0, endColumn: Infinity}),
+                     this.codeQL.extractSourceCode({ ...refLocation, startColumn: 0, endColumn: Infinity }),
                      "js")}\n`;
                }
             }
@@ -280,7 +285,7 @@ export class RunnerSourceNotExported extends Runner {
          }
          for (const refLocation of newReferences) {
             const stmtNode = this.codeQL.getEnclosingStatement(refLocation);
-            if (!seenStatements.includes(stmtNode)) {
+            if (stmtNode && !seenStatements.includes(stmtNode)) {
                toResolve.push(stmtNode);
                seenStatements.push(stmtNode);
             }

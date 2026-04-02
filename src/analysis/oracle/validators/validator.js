@@ -129,19 +129,23 @@ export class Validator {
             continue;
          }
          const url = `file://${join(this.config.nmPath, breakpointRequest.location.filePath)}`;
-         await session.post("Debugger.setBreakpointByUrl", {
-            lineNumber: breakpointRequest.location.startLine,
-            url,
-         }, (err, result) => {
-            if (err) {
-               this.log(err);
-            } else {
-               this.log(`Breakpoint set: ${result.breakpointId}`);
-               breakpoints.push({
-                  breakpointId: result.breakpointId,
-                  requests: [breakpointRequest],
-               })
-            }
+         await new Promise((resolve, reject) => {
+            session.post("Debugger.setBreakpointByUrl", {
+               lineNumber: breakpointRequest.location.startLine,
+               url,
+            }, (err, result) => {
+               if (err) {
+                  this.log(err);
+                  reject(err);
+               } else {
+                  this.log(`Breakpoint set: ${result.breakpointId}`);
+                  breakpoints.push({
+                     breakpointId: result.breakpointId,
+                     requests: [breakpointRequest],
+                  });
+                  resolve();
+               }
+            });
          });
       }
 
@@ -150,6 +154,7 @@ export class Validator {
       session.on("Debugger.paused", async (event) => {
          try {
             const hitBreakpointId = event.params?.hitBreakpoints[0];
+            this.log(`Paused at breakpoint: ${hitBreakpointId}`);
             if (!this.isCallFromSource()) {
                this.log(`!fromSource Breakpoint hit: ${hitBreakpointId}`);
                return;
@@ -159,6 +164,7 @@ export class Validator {
             }
             hitBreakpointIds.push(hitBreakpointId);
             const bpRequest = breakpoints.find((bp) => bp.breakpointId === hitBreakpointId);
+            this.log(`Handling breakpoint: ${bpRequest}`);
             // Check whether already hit.
             if (this.runtimeInfo.hitBreakpoints.some((bp) => bp.breakpointId === hitBreakpointId)) {
                return;
@@ -168,20 +174,25 @@ export class Validator {
 
                // Evaluate the expression
                for (const request of bpRequest.requests) {
-                  await session.post("Debugger.evaluateOnCallFrame", {
-                     callFrameId: event.params.callFrames[0].callFrameId,
-                     expression: `JSON.stringify(${request.expression})`,
-                     generatePreview: false,
-                  }, async (err, data) => {
-                     if (err) {
-                        this.log(err);
-                        return;
-                     }
-                     if (data.result.subtype === "error") {
-                        this.log(`${data.result.className}: ${request.expression}`);
-                        return;
-                     }
-                     this.runtimeInfo.hitBreakpoints.push(new HitBreakpoint(request, data.result));
+                  await new Promise((resolve) => {
+                     session.post("Debugger.evaluateOnCallFrame", {
+                        callFrameId: event.params.callFrames[0].callFrameId,
+                        expression: `JSON.stringify(${request.expression})`,
+                        generatePreview: false,
+                     }, (err, data) => {
+                        if (err) {
+                           this.log(err);
+                           resolve();
+                           return;
+                        }
+                        if (data.result.subtype === "error") {
+                           this.log(`${data.result.className}: ${request.expression}`);
+                           resolve();
+                           return;
+                        }
+                        this.runtimeInfo.hitBreakpoints.push(new HitBreakpoint(request, data.result));
+                        resolve();
+                     });
                   });
                }
             } else {

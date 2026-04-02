@@ -1,4 +1,4 @@
-import {getPrompt} from "../prompting/promptGenerator.js";
+import { getPrompt } from "../prompting/promptGenerator.js";
 import traverse from "@babel/traverse";
 import parser from "@babel/parser";
 
@@ -32,9 +32,9 @@ export default class Triage {
          throw new Error("Illegal state.")
       }
       if (this.checkFalsePositiveHeuristics()) {
+         console.log(`[Reason for failure] False positive detected`);
          return false;
       }
-      // This can still cause false negatives, however they are rare
       if (this.runtimeInfo.confirmedFromSource) {
          return true;
       }
@@ -45,7 +45,11 @@ export default class Triage {
          package: this.npmPackage
       });
       const response = await this.model.queryOne(prompt);
-      return response.split("\n")[0].toLowerCase().trim() === "true positive";
+      const final_verdict = response.split("\n")[0].toLowerCase().trim() === "true positive";
+      if (!final_verdict) {
+         console.log(`[Reason for failure] False positive detected`);
+      }
+      return final_verdict;
    }
 
    checkFalsePositivePP() {

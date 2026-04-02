@@ -1,11 +1,11 @@
-import {Runner} from "./runner.js";
-import {renderPromptTemplate} from "../prompting/promptGenerator.js";
-import {loadModels} from "../model/model.js";
-import {join} from "node:path";
-import {recCopy} from "../utils/utils.js";
-import {mkdirSync, writeFileSync} from "fs";
-import {spawn} from "child_process";
-import {basename} from "path";
+import { Runner } from "./runner.js";
+import { renderPromptTemplate } from "../prompting/promptGenerator.js";
+import { loadModels } from "../model/model.js";
+import { join } from "node:path";
+import { recCopy } from "../utils/utils.js";
+import { mkdirSync, writeFileSync } from "fs";
+import { spawn } from "child_process";
+import { basename } from "path";
 import RunnerResult from "./runnerResult.js";
 
 process.on(
@@ -61,8 +61,8 @@ export default class RunnerAgent extends Runner {
             "allow_fs_access": true,
             /*   "fast_llm": "gpt-3.5-turbo",
                "smart_llm": "gpt-4-turbo",*/
-            "fast_llm": "gpt-4o-mini",
-            "smart_llm": "gpt-4o-mini",
+            "fast_llm": "gpt-5-mini",
+            "smart_llm": "gpt-5-mini",
             "use_functions_api": false,
             "default_cycle_instruction": "Determine exactly one command to use next based on the given goals and the progress you have made so far, and respond using the JSON schema specified previously:",
             "big_brain": true,
@@ -81,7 +81,7 @@ export default class RunnerAgent extends Runner {
       }
 
       const workspaceBaseDir = join(this.baseDir, "agent_workspace");
-      mkdirSync(workspaceBaseDir, {recursive: true});
+      mkdirSync(workspaceBaseDir, { recursive: true });
 
       // Add .env
       const envFilePath = join(workspaceBaseDir, ".env");
@@ -89,25 +89,25 @@ export default class RunnerAgent extends Runner {
          OPENAI_API_KEY=${process.env.OPENAI_API_KEY}
          TELEMETRY_OPT_IN=False,
          RESTRICT_TO_WORKSPACE=True
-         SMART_LLM_MODEL=gpt-4o-mini
-         FAST_LLM_MODEL=gpt-4o-mini
+         SMART_LLM_MODEL=gpt-5-mini
+         FAST_LLM_MODEL=gpt-5-mini
          FAST_TOKEN_LIMIT=4000
          SMART_TOKEN_LIMIT=8000
          EXECUTE_LOCAL_COMMANDS=True
-         DISABLED_COMMANDS=ask_user,execute_python_code,execute_python_file,web_search,search
+         DISABLED_COMMANDS=ask_user,execute_python_code,execute_python_file,web_search,search,read_webpage
       `.trim().split("\n").map(line => line.trim()).join("\n");
       writeFileSync(envFilePath, envContent, 'utf8');
 
       // Add state.json
       const agentBaseDir = join(workspaceBaseDir, "agents", agentName);
-      mkdirSync(agentBaseDir, {recursive: true});
+      mkdirSync(agentBaseDir, { recursive: true });
       const stateFilePath = join(agentBaseDir, "state.json");
       const stateContent = JSON.stringify(state, null, 2);
       writeFileSync(stateFilePath, stateContent, 'utf8');
 
       // Add project source code
       const workspaceDir = join(agentBaseDir, "workspace");
-      mkdirSync(workspaceDir, {recursive: true});
+      mkdirSync(workspaceDir, { recursive: true });
       const baseName = basename(this.nmModulePath);
       // recCopy(this.nmModulePath, join(workspaceDir, baseName));
 
@@ -165,6 +165,10 @@ export default class RunnerAgent extends Runner {
                self.model.uncachedPromptsUsage.completionTokens += outputTokens;
             }
 
+            if (output.includes("Enter the task that you want AutoGPT to execute, with as much detail as possible:")) {
+               child.stdin.write(goal.replaceAll("\n", "\\n"));
+               child.stdin.write('\n');
+            }
             if (output.includes("Enter the number or name of the agent to run, or hit enter to create a new one:")) {
                child.stdin.write('1\n');
             }

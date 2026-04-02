@@ -1,8 +1,8 @@
-import {Prompt} from "./prompt.js";
+import { Prompt } from "./prompt.js";
 import SummarizerOptions from "./summarizerOptions.js";
 import PriorityQueue from "./priorityQueue.js";
-import {getPrompt} from "./promptGenerator.js";
-import {TaintPath} from "../analysis/codeql/taintPath.js";
+import { getPrompt } from "./promptGenerator.js";
+import { TaintPath } from "../analysis/codeql/taintPath.js";
 import {
    AsyncFunction,
    esc,
@@ -14,9 +14,9 @@ import {
 import RefinementOptions from "./refinementOptions.js";
 import RefinementInfo from "../models/refinementInfo.js";
 import parser from "@babel/parser";
-import {getAllFunctions} from "../utils/parserUtils.js";
+import { getAllFunctions } from "../utils/parserUtils.js";
 import generate from "@babel/generator";
-import {NO_EXPLOIT_LEFT} from "../models/exploitAttempt.js";
+import { NO_EXPLOIT_LEFT } from "../models/exploitAttempt.js";
 
 /**
  * @typedef {import("../models/source").default} Source
@@ -160,6 +160,7 @@ export class PromptRefiner {
     */
    async nextPrompt() {
       if (this.refinementAttempts >= this.maxRefinements) {
+         console.log(`[Reason for failure] maxRefinements reached`);
          throw new Error("maxRefinements reached");
       }
       if (this.#seenPrompts.length === 0) {
@@ -167,7 +168,7 @@ export class PromptRefiner {
       }
 
       nextRefiner: while (this.#unusedRefiners.length > 0) {
-         const {priority, refiner} = this.#unusedRefiners.dequeue();
+         const { priority, refiner } = this.#unusedRefiners.dequeue();
          const prompt = await refiner.refine();
          console.log(`${refiner.constructor.name} (priority=${priority}): ${esc(refiner.refinementOptions)}`);
          if (!prompt) {
@@ -355,7 +356,7 @@ export class PromptRefiner {
     * @returns {Prompt} - A new prompt with the refined exploit code.
     */
    refineSyntax(code, error) {
-      return getPrompt("refineSyntax", {error, code});
+      return getPrompt("refineSyntax", { error, code });
    }
 
    /**
@@ -366,7 +367,7 @@ export class PromptRefiner {
    async getLLMExploits() {
       const refinedPrompt = await this.nextPrompt();
       if (!refinedPrompt) {
-         new Error(NO_EXPLOIT_LEFT);
+         throw new Error(NO_EXPLOIT_LEFT);
       }
       const exploits = await this.#getExploitsFromLLM(refinedPrompt);
       if (exploits.length > 0) {

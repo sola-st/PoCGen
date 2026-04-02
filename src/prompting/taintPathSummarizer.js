@@ -8,11 +8,11 @@ import {
    wrapBackticks,
    wrapTripleBackticks,
 } from "../utils/utils.js";
-import {getSignature} from "../utils/parserUtils.js";
+import { getSignature } from "../utils/parserUtils.js";
 import SummarizerOptions from "./summarizerOptions.js";
-import {relative} from "node:path";
-import {readFileSync} from "node:fs";
-import {parseExpression} from "@babel/parser";
+import { relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { parseExpression } from "@babel/parser";
 
 const SNIP = "<snip>";
 
@@ -50,15 +50,15 @@ export class TaintPathSummarizer {
     * @param {TaintPathSummarizerParams} params - The summarizer parameters.
     */
    constructor({
-                  taintPath,
-                  options = undefined,
-                  hitBreakPoints = undefined,
-                  errorDetails = undefined,
-                  missingDeclarations = undefined,
-                  uncoveredLocations = undefined,
-                  stoppedSnippet,
-                  maxTokens = 80_000
-               }) {
+      taintPath,
+      options = undefined,
+      hitBreakPoints = undefined,
+      errorDetails = undefined,
+      missingDeclarations = undefined,
+      uncoveredLocations = undefined,
+      stoppedSnippet,
+      maxTokens = 80_000
+   }) {
       this.maxTokens = maxTokens;
       this.taintPath = taintPath;
       this.options = options;
@@ -92,6 +92,7 @@ export class TaintPathSummarizer {
       for (let snippetIdx = 0; snippetIdx < this.taintPath.functionSnippets.length; snippetIdx++) {
          prompt += `${(this.getSummary(this.taintPath.functionSnippets, snippetIdx))}\n`;
       }
+      console.log(`[Analysis Info] length: ${prompt.length}`);
       return prompt.trimEnd();
    }
 
@@ -415,6 +416,7 @@ export class TaintPathSummarizer {
       }
 
       if (this.hitBreakPoints?.length > 0) {
+         console.log("breakpoints", JSON.stringify(this.hitBreakPoints));
          const breakPoints = this.hitBreakPoints.filter(hp =>
             hp.breakpointRequest.location.startLine === lineNumber
             && hp.breakpointRequest.location.filePath === taintStepLocations[0].filePath

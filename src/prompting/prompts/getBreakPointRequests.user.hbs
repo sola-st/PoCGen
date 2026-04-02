@@ -1,9 +1,12 @@
 You are provided with the coverage information of the function where the flow stops.
-In order to debug the exploit, you can ask for the value of any variable in the code.
-If you need the value of a variable, you can just call the tool with the variable name.
-If you need the result of a function call in the code, you can send the function expression to the tool.
+In order to debug the exploit, you can ask for the value of any expression in the code.
+If you need the value of an expression, you can just call the tool with the expression and its line number.
+The code snippets include line numbers.
+You can only ask for expressions that are executed, not the ones on lines starting with `-`.
 
-You can submit the debug expressions with the tool: `{{toolName}}`.
+You can submit the debug expressions with the tool `{{toolName}}` using:
+- The **line number** of the expression.
+- The **expression** itself as argument.
 
 {{#if failedExploit}}
 Failed exploit:

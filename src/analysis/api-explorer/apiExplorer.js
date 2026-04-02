@@ -287,7 +287,7 @@ export class ApiExplorer {
                return apiFunction.copyExportName(newObjectExportName);
             }
             // Constructor Function (Pre-ES6)
-            if (callable.prototype && callable.prototype !== {}) {
+            if (callable.prototype) {
                const protoFunctions = [];
                for (const [propMethodName, innerCallable] of getProperties(
                   callable.prototype,

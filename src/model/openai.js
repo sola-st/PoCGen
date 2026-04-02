@@ -1,6 +1,6 @@
-import {OpenAI} from "openai";
+import { OpenAI } from "openai";
 import Model from "./model.js";
-import {fnIndexes} from "./tools.js";
+import { fnIndexes } from "./tools.js";
 
 const REFUSAL = [
    "I'm sorry, I can't do that. Please try again.",
@@ -45,15 +45,23 @@ export default class OpenAIModel extends Model {
          prompt.userPrompt = result;
       }
 
-      let openaiOpts;
-      if (opts) {
-         openaiOpts = {
-            temperature: opts.temperature ?? 1,
-            n: opts.choices ?? 1,
-            max_completion_tokens: opts.maxCompletionTokens,
-            tools: opts.tools,
-         };
+      // Merge modelOptions with query-time opts, allowing opts to override modelOptions
+      const mergedOpts = {
+         ...this.modelOptions,
+         ...opts,
+      };
+
+      let openaiOpts = {
+         // temperature: mergedOpts.temperature ?? 1,
+         n: mergedOpts.choices ?? 1,
+         max_completion_tokens: mergedOpts.maxCompletionTokens,
+         tools: mergedOpts.tools,
+      };
+
+      if (mergedOpts.reasoning_effort) {
+         openaiOpts.reasoning_effort = mergedOpts.reasoning_effort;
       }
+
       const completion = await this.openai.chat.completions.create({
          ...openaiOpts,
          model: this.modelName,
@@ -68,6 +76,12 @@ export default class OpenAIModel extends Model {
             },
          ],
       });
+
+      console.log("LLM Request Options:", JSON.stringify({ ...openaiOpts, model: this.modelName }, null, 2));
+
+      if (completion.usage?.completion_tokens_details?.reasoning_tokens) {
+         console.log(`LLM Reasoning Tokens: ${completion.usage.completion_tokens_details.reasoning_tokens}`);
+      }
       /*  this.promptTokens += completion.usage.prompt_tokens;
         this.completionTokens += completion.usage.completion_tokens;
   */
@@ -119,7 +133,7 @@ export default class OpenAIModel extends Model {
 
    /** @inheritDoc */
    async queryTools(prompt, tools, opts = undefined) {
-      const modelResponse = await this.query(prompt, {...opts, tools});
+      const modelResponse = await this.query(prompt, { ...opts, tools });
 
       const toolNames = tools.map((tool) => tool.function.name);
 

@@ -1,5 +1,5 @@
-import {Validator} from "./validator.js";
-import {wrapBackticks} from "../../../utils/utils.js";
+import { Validator } from "./validator.js";
+import { wrapBackticks } from "../../../utils/utils.js";
 
 export const ppName = "exploited";
 
@@ -61,17 +61,22 @@ export default class PrototypePollutionValidator extends Validator {
       Object.defineProperty = definePropertyHandler;
       Reflect.defineProperty = definePropertyHandler;
 
-      Object.prototype.__defineSetter__(ppName, function () {
+      Object.prototype.__defineSetter__(ppName, function (val) {
          if (this !== Object.prototype) {
             return;
          }
          self.runtimeInfo.confirmed = true;
          if (self.isCallFromSource()) {
-            self.log(`Confirmed`);
+            self.log(`Confirmed defineSetter`);
             self.runtimeInfo.confirmedFromSource = true;
+            Object.prototype._exploited = val;
          } else {
             self.log(`!fromSource Prototype pollution`);
          }
+      });
+
+      Object.prototype.__defineGetter__(ppName, function () {
+         return Object.prototype._exploited;
       });
    }
 

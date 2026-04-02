@@ -1,5 +1,5 @@
-import {isNumber, recListFiles, stripRecursively} from "../utils/utils.js";
-import {join} from "node:path";
+import { isNumber, recListFiles, stripRecursively } from "../utils/utils.js";
+import { join } from "node:path";
 
 /**
  * @typedef {object} QueryOptions
@@ -227,9 +227,11 @@ export default class Model {
     */
    checkTokenExceeded() {
       if (isNumber(this.modelOptions?.maxCompletionTokensTotal) && this.modelOptions.maxCompletionTokensTotal < this.totalCompletionTokens) {
+         console.log('[Reason for failure] Completion tokens exceeded');
          throw new TokenLimitExceededError(`Completion tokens exceeded: ${(this.totalCompletionTokens)} > ${this.modelOptions.maxCompletionTokensTotal}`);
       }
       if (isNumber(this.modelOptions?.maxPromptTokensTotal) && this.modelOptions.maxPromptTokensTotal < this.totalPromptTokens) {
+         console.log('[Reason for failure] Prompt tokens exceeded');
          throw new TokenLimitExceededError(`Prompt tokens exceeded: ${(this.totalPromptTokens)} > ${this.modelOptions.maxPromptTokensTotal}`);
       }
       return false;
@@ -239,7 +241,7 @@ export default class Model {
     * Provide usage statistics related to the runner operation.
     */
    toJSON() {
-      const {cachedPromptsUsage, uncachedPromptsUsage} = this;
+      const { cachedPromptsUsage, uncachedPromptsUsage } = this;
       return {
          cachedPromptsUsage,
          uncachedPromptsUsage,

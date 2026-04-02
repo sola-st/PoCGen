@@ -1,15 +1,15 @@
-import {getPrompt, renderPromptTemplate} from "../promptGenerator.js";
-import {TaintPathSummarizer} from "../taintPathSummarizer.js";
+import { getPrompt, renderPromptTemplate } from "../promptGenerator.js";
+import { TaintPathSummarizer } from "../taintPathSummarizer.js";
 import SummarizerOptions from "../summarizerOptions.js";
-import {Prompt} from "../prompt.js";
+import { Prompt } from "../prompt.js";
 import Location from "../../models/location.js";
 import BreakpointRequest from "../../models/breakpointRequest.js";
-import {MessageType} from "../../analysis/oracle/validators/validator.js";
-import {debugRequestsTool, missingDefinitionTool} from "../../model/tools.js";
+import { MessageType } from "../../analysis/oracle/validators/validator.js";
+import { debugRequestsTool, missingDefinitionTool } from "../../model/tools.js";
 import MissingDeclarationsSnippet from "../../analysis/codeql/missingDeclarationsSnippet.js";
-import {wrapBackticks} from "../../utils/utils.js";
+import { wrapBackticks } from "../../utils/utils.js";
 import fs from "fs";
-import {join} from "node:path";
+import { join } from "node:path";
 
 export default class DefaultRefiner {
 
@@ -98,8 +98,10 @@ export default class DefaultRefiner {
          for (const error of this.runtimeInfo.errors) {
             if (error.stack) {
                errors.push(error.stack);
+               console.log(`[Runtime error] length: ${error.stack.length}`);
             } else {
                errors.push(error);
+               console.log(`[Runtime error] length: ${error.length}`);
             }
          }
          this.renderVars.errors = errors;
@@ -114,28 +116,36 @@ export default class DefaultRefiner {
 
          if (this.refinementOptions.includeConsoleMessages) {
             this.renderVars.consoleMessages = this.runtimeInfo.consoleMessages;
+            console.log(`[Console messages] length: ${this.runtimeInfo.consoleMessages.length}`);
          }
       }
 
       if (this.refinementOptions.resolveReferences) {
-         const stoppedFunction = this.stoppedSnippet?.functionSnippet ?? this.taintPath.getSinkFunctionSnippet();
+         // const stoppedFunction = this.stoppedSnippet?.functionSnippet ?? this.taintPath.getSinkFunctionSnippet();
 
-         if (this.refinementOptions.verbosity === SummarizerOptions.SnippetVerbosity.FULL_BODY_WITH_DECLARATIONS) {
-            /**
-             * Resolves missing references for the entire taint path.
-             */
-            for (const functionSnippet of this.promptRefiner.taintPath.functionSnippets) {
-               this.taintPath.missingDeclarations.put(await this.resolveMissingDeclarations(functionSnippet));
-            }
-         } else {
-            // If flow stops at a function, resolve references for that function.
-            this.taintPath.missingDeclarations.put(await this.resolveMissingDeclarations(stoppedFunction));
+         // if (this.refinementOptions.verbosity === SummarizerOptions.SnippetVerbosity.FULL_BODY_WITH_DECLARATIONS) {
+         //    /**
+         //     * Resolves missing references for the entire taint path.
+         //     */
+         //    for (const functionSnippet of this.promptRefiner.taintPath.functionSnippets) {
+         //       this.taintPath.missingDeclarations.put(await this.resolveMissingDeclarations(functionSnippet));
+         //    }
+         // } else {
+         //    // If flow stops at a function, resolve references for that function.
+         //    this.taintPath.missingDeclarations.put(await this.resolveMissingDeclarations(stoppedFunction));
+         // }
+         for (const functionSnippet of this.promptRefiner.taintPath.functionSnippets) {
+            this.taintPath.missingDeclarations.put(await this.resolveMissingDeclarations(functionSnippet));
          }
       }
 
       if (this.refinementOptions.setBreakPoints) {
-         const stoppedFunction = this.stoppedSnippet?.functionSnippet ?? this.taintPath.getSinkFunctionSnippet();
-         this.hitBreakpoints = await this.getBreakPoints(stoppedFunction);
+         // const stoppedFunction = this.stoppedSnippet?.functionSnippet ?? this.taintPath.getSinkFunctionSnippet();
+         // this.hitBreakpoints = await this.getBreakPoints(stoppedFunction);
+         this.hitBreakpoints = [];
+         for (const functionSnippet of this.promptRefiner.taintPath.functionSnippets) {
+            this.hitBreakpoints.push(...(await this.getBreakPoints(functionSnippet)));
+         }
       }
 
       try {
@@ -304,7 +314,7 @@ export default class DefaultRefiner {
          missingDefinitionTool,
       ]);
       for (const toolCall of toolCalls) {
-         const {referenceLineNumber, identifierName} = toolCall.arguments;
+         const { referenceLineNumber, identifierName } = toolCall.arguments;
          const startColumn = this.codeQL
             // The line numbers in the prompt are 1-based
             .getFileLine(functionSnippet.getFile(), referenceLineNumber - 1)

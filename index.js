@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 
-import {Command, InvalidArgumentError, Option} from "commander";
-import {loadEnv} from "./src/utils/utils.js";
-import {GHSAPipelineRunner} from "./src/pipeline/ghsaPipeline.js";
-import {DefaultPipelineRunner} from "./src/pipeline/defaultPipeline.js";
-import {RunnerSourceNotExported} from "./src/runners/runnerSourceNotExported.js";
-import {RunnerExploitUpstreamPackage} from "./src/runners/runnerExploitUpstreamPackage.js";
-import {readFileSync} from "node:fs";
+import { Command, InvalidArgumentError, Option } from "commander";
+import { loadEnv } from "./src/utils/utils.js";
+import { GHSAPipelineRunner } from "./src/pipeline/ghsaPipeline.js";
+import { DefaultPipelineRunner } from "./src/pipeline/defaultPipeline.js";
+import { RunnerSourceNotExported } from "./src/runners/runnerSourceNotExported.js";
+import { RunnerExploitUpstreamPackage } from "./src/runners/runnerExploitUpstreamPackage.js";
+import { readFileSync } from "node:fs";
 import fs from "fs";
-import {loadVulnerabilityTypes} from "./src/models/vulnerability.js";
-import {loadRefiners} from "./src/prompting/promptRefiner.js";
-import {loadModels} from "./src/model/model.js";
+import { loadVulnerabilityTypes } from "./src/models/vulnerability.js";
+import { loadRefiners } from "./src/prompting/promptRefiner.js";
+import { loadModels } from "./src/model/model.js";
 import DefaultRefiner from "./src/prompting/refiners/default.refiner.js";
-import {fileURLToPath} from "node:url";
+import { fileURLToPath } from "node:url";
 import RunnerAgent from "./src/runners/runnerAgent.js";
+import RunnerMiniSWEAgent from "./src/runners/runnerMiniSWEAgent.js";
 
 function intParser(value) {
    const parsedValue = parseInt(value, 10);
@@ -71,7 +72,7 @@ function addModelOptions(command) {
       .addOption(
          new Option("-m, --model <model>", "model to use")
             .choices(models.map(s => s.name))
-            .default(models[0].name)
+            .default("gpt-5-mini")
       )
       .option(
          "--promptCache",
@@ -81,7 +82,7 @@ function addModelOptions(command) {
          "--temperature <temperature>",
          "number between 0 and 2 indicating the randomness of the model",
          floatParser,
-         0,
+         1,
       )
       .option(
          "--maxCompletionTokensTotal <maxCompletionTokensTotal>",
@@ -152,14 +153,14 @@ function addBaseOptions(command) {
          new Option(
             "-runner, --runner <runner>",
             `runner type`,
-         ).default(RunnerSourceNotExported.name).choices([RunnerSourceNotExported.name, RunnerAgent.name])
+         ).default(RunnerSourceNotExported.name).choices([RunnerSourceNotExported.name, RunnerAgent.name, RunnerMiniSWEAgent.name])
       );
    return command.allowUnknownOption(false);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
    const cmd = new Command();
-   addBaseOptions(cmd.command("create"), {isDefault: true})
+   addBaseOptions(cmd.command("create"), { isDefault: true })
       .description("create an exploit for a vulnerability")
       .option(
          "-d, --description <description>", "description of the vulnerability",
@@ -168,7 +169,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       .option("-exploitBaseDir, --exploitBaseDir <exploitBaseDir>", "downstream package base directory")
       .argument("<advisoryId>", "GHSA/ Snyk id of the vulnerability")
       .action((advisoryId, opts) => {
-         const runnerCls = opts.runner === RunnerAgent.name ? RunnerAgent : RunnerSourceNotExported;
+         const runnerCls = opts.runner === RunnerAgent.name ? RunnerAgent : (opts.runner === RunnerMiniSWEAgent.name ? RunnerMiniSWEAgent : RunnerSourceNotExported);
          opts.advisoryId = advisoryId;
          if (opts.upstream && opts.exploitBaseDir) {
             new runnerCls(opts).start().catch(console.error).then(console.log);

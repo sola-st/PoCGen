@@ -7,13 +7,13 @@ This repository contains a tool to generate proof-of-concept exploits for vulner
 1. Clone the repository:
 
 ```sh
-$ git clone https://github.com/sola-st/PoCGen
+$ git clone https://github.com/sola-st/master-thesis-deniz-simsek gen-poc
 ```
 
 2. Install dependencies:
 
 ```sh
-$ cd PoCGen
+$ cd gen-poc
 $ npm install
 ```
 
@@ -106,3 +106,13 @@ To reproduce the results for RQ3, run the following command:
 ```sh
 $ ./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all
 ```
+
+### RQ4: How well does the approach generalize to newer vulnerabilities?
+
+```sh
+$ ./run-mnt.sh output node index.js pipeline -v dataset/CWEBench.js/*\.all
+```
+
+<div style="text-align: center;">
+  <img src="figures/CWEBench.js_tables.png" width="400px"/>
+</div>

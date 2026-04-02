@@ -1,7 +1,7 @@
-import GhsaApi, {isValidGhsaId} from "../vulnerability-databases/ghsaApi.js"
-import {createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync} from "node:fs";
-import {join, resolve} from "node:path";
-import {getExportsFromPackage} from "../analysis/api-explorer/getExports.js";
+import GhsaApi, { isValidGhsaId } from "../vulnerability-databases/ghsaApi.js"
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync, rmdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { getExportsFromPackage } from "../analysis/api-explorer/getExports.js";
 import {
    extractJSTripleBackticks,
    extractTripleBackticks,
@@ -13,31 +13,31 @@ import {
    recListFiles,
    wrapTripleBackticks,
 } from "../utils/utils.js";
-import {loadVulnerabilityType, loadVulnerabilityTypes,} from "../models/vulnerability.js";
-import {execFileSync, fork, spawnSync} from "child_process";
-import {loadRefiners, PromptRefiner} from "../prompting/promptRefiner.js";
-import {colorize, splitMessageIntoLines} from "../utils/logging.js";
-import {EXPLOIT_TIMEOUT_DURATION, MessageType} from "../analysis/oracle/validators/validator.js";
-import CodeQLDatabase, {FileNotIndexedError} from "../analysis/codeql/codeQL.js";
-import SnykApi, {isValidSnykId} from "../vulnerability-databases/snykApi.js";
-import {NpmPackage} from "../npm/npmPackage.js";
-import {getAllFunctions, removeSourceURLComments} from "../utils/parserUtils.js";
-import ExploitAttempt, {NO_EXPLOIT_LEFT, NO_WORKING_EXPLOIT,} from "../models/exploitAttempt.js";
-import Model, {isNone, loadModels, TokenLimitExceededError} from "../model/model.js";
-import PromptGenerator, {getPrompt} from "../prompting/promptGenerator.js";
+import { loadVulnerabilityType, loadVulnerabilityTypes, } from "../models/vulnerability.js";
+import { execFileSync, fork, spawnSync } from "child_process";
+import { loadRefiners, PromptRefiner } from "../prompting/promptRefiner.js";
+import { colorize, splitMessageIntoLines } from "../utils/logging.js";
+import { EXPLOIT_TIMEOUT_DURATION, MessageType } from "../analysis/oracle/validators/validator.js";
+import CodeQLDatabase, { FileNotIndexedError } from "../analysis/codeql/codeQL.js";
+import SnykApi, { isValidSnykId } from "../vulnerability-databases/snykApi.js";
+import { NpmPackage } from "../npm/npmPackage.js";
+import { getAllFunctions, removeSourceURLComments } from "../utils/parserUtils.js";
+import ExploitAttempt, { NO_EXPLOIT_LEFT, NO_WORKING_EXPLOIT, } from "../models/exploitAttempt.js";
+import Model, { isNone, loadModels, TokenLimitExceededError } from "../model/model.js";
+import PromptGenerator, { getPrompt } from "../prompting/promptGenerator.js";
 import assert from "node:assert";
-import {toolSortCandidates} from "../model/tools.js";
-import CodeQLQueryBuilder, {TEMPLATES_CODEQL_DIR} from "../analysis/codeql/codeQLQueryBuilder.js";
+import { toolSortCandidates } from "../model/tools.js";
+import CodeQLQueryBuilder, { TEMPLATES_CODEQL_DIR } from "../analysis/codeql/codeQLQueryBuilder.js";
 import RunnerResult from "./runnerResult.js";
 import ExploitSuccessResult from "./exploitSuccessResult.js";
 import PotentialSinkList from "./potentialSinkList.js";
 import loadExploits from "../prompting/few-shot/loadExploits.js";
-import {TaintPath} from "../analysis/codeql/taintPath.js";
+import { TaintPath } from "../analysis/codeql/taintPath.js";
 import ApiUsageMiner from "../utils/apiUsageMiner.js";
-import SarifFile, {getTaintPathsInOrder} from "../analysis/codeql/sarif.js";
+import SarifFile, { getTaintPathsInOrder } from "../analysis/codeql/sarif.js";
 import LocationRange from "../models/locationRange.js";
 import RefinementInfo from "../models/refinementInfo.js";
-import {CandidateSet, CandidateSets, TaintPathType} from "./candidateSet.js";
+import { CandidateSet, CandidateSets, TaintPathType } from "./candidateSet.js";
 import Triage from "./triage.js";
 import createTestFile from "./createTestFile.js";
 import getSimilarExploits from "../prompting/few-shot/getSimilarExploits.js";
@@ -127,11 +127,11 @@ export class Runner extends RunnerResult {
          throw new Error(`Invalid advisory: ${advisoryId}`);
       }
       this.baseDir = resolve(join(
-            this.opts.output ?? process.cwd(),
-            advisoryId.replace(/[^a-zA-Z0-9\-]/g, "_"),
-         ),
+         this.opts.output ?? process.cwd(),
+         advisoryId.replace(/[^a-zA-Z0-9\-]/g, "_"),
+      ),
       );
-      mkdirSync(this.baseDir, {recursive: true});
+      mkdirSync(this.baseDir, { recursive: true });
       this.advisory = await this.vulnerabilityDatabase.getAdvisory(advisoryId);
       this.package = await this.getPackage();
       this.nmPath = join(this.baseDir, "node_modules");
@@ -149,7 +149,7 @@ export class Runner extends RunnerResult {
 
       // Some statistics about the package
       try {
-         this.sloc = JSON.parse(execFileSync("cloc", ["--json", "--include-ext=js", this.nmModulePath]).toString())
+         this.sloc = JSON.parse(execFileSync("cloc", ["--json", "--include-ext=js,ts,tsx", this.nmModulePath]).toString())
       } catch (e) {
          console.error(`Could not count lines of code`);
          console.error(e);
@@ -158,7 +158,7 @@ export class Runner extends RunnerResult {
 
    setupLogging() {
       // Log stdout and stderr to file
-      const logFile = createWriteStream(getAvailableFilePath(join(this.baseDir, `output_${this.opts.refiner}.log`)), {flags: 'w'});
+      const logFile = createWriteStream(getAvailableFilePath(join(this.baseDir, `output_${this.opts.refiner}.log`)), { flags: 'w' });
       this._fd1Write = process.stdout.write.bind(process.stdout);
       this._fd2Write = process.stderr.write.bind(process.stderr);
       process.stdout.write = (chunk, encoding, callback) => {
@@ -172,7 +172,9 @@ export class Runner extends RunnerResult {
    }
 
    async run() {
+      console.info("[Pipeline Status] Starting pipeline run");
       await this.setupWorkingDir();
+      console.info("[Pipeline Status] setupWorkingDir verified");
       this.setupLogging();
 
       const lmModule = (await loadModels()).find((m) => m.name === this.opts.model);
@@ -263,6 +265,7 @@ export class Runner extends RunnerResult {
       // Prepare the codebase for CodeQL analysis
       const srcRoot = await this.prepareCodebase();
       this.codeQL = new CodeQLDatabase(this.baseDir, srcRoot, this.package, this.procOpts);
+      console.info("[Pipeline Status] CodeQL Database initialized");
 
       // Track execution time
       const _analyse = this.codeQL.analyse;
@@ -272,11 +275,14 @@ export class Runner extends RunnerResult {
          });
       };
       await this.performanceTracker.markFn("codeql.init", async () => {
+         console.info("[Pipeline Status] Starting CodeQL init");
          await this.codeQL.init();
+         console.info("[Pipeline Status] Finished CodeQL init");
       });
 
       try {
          await this.performanceTracker.markFn("getExportsFromPackage", async () => {
+            console.info("[Pipeline Status] Starting getExportsFromPackage");
             this.apiExplorerResults = await getExportsFromPackage(
                this.nmPath,
                this.package.asPath(),
@@ -284,14 +290,21 @@ export class Runner extends RunnerResult {
                   onlyEntryPoint: false,
                }
             );
+            console.info("[Pipeline Status] Finished getExportsFromPackage");
          });
          this.vulnerabilityDescription = await this.getRedactedDescription();
+         console.info("[Pipeline Status] Fetched vulnerability description");
 
          // Check whether the vulnerability report contains the name of an exported function.
          this.llmIdentifiedFunctionName = await this.getFunctionNameFromDescription();
-         this.candidatesByName = await this.apiExplorerResults.getCandidatesByFunctionName(this.llmIdentifiedFunctionName);
+         console.info(`[Pipeline Status] Identified function name: ${this.llmIdentifiedFunctionName}`);
 
+         this.candidatesByName = await this.apiExplorerResults.getCandidatesByFunctionName(this.llmIdentifiedFunctionName);
+         console.info("[Pipeline Status] Retrieved candidates by function name");
+
+         console.info("[Pipeline Status] Starting exploit creation");
          this.exploitSuccessResult = await this.startExploitCreation();
+         console.info("[Pipeline Status] Finished exploit creation");
 
       } catch (e) {
          console.error(`Unexpected error`);
@@ -439,6 +452,33 @@ export class Runner extends RunnerResult {
          }
       });
       console.log(`Downloaded ${this.package} to ${this.baseDir}`);
+
+      // Attempt to install the package's devDependencies as well.
+      // Many packages do not publish devDependencies to the registry, so this
+      // will only install devDependencies if the package contains them (e.g.,
+      // when installing from a git repo or when the package includes them).
+      try {
+         const pkgDir = this.nmModulePath;
+         const pkgJsonPath = join(pkgDir, "package.json");
+         if (existsSync(pkgJsonPath)) {
+            console.log(`Installing devDependencies for package at ${pkgDir}`);
+            // Run `npm install` in the package directory to install devDependencies.
+            // This keeps the installation isolated inside the package folder.
+            const devResult = spawnSync("npm", ["install"], {
+               ...this.procOpts,
+               cwd: pkgDir,
+            });
+            if (devResult.status !== 0) {
+               console.warn(`Could not install devDependencies for ${this.package}: ${devResult.stderr.toString()}`);
+            } else {
+               console.log(`Installed devDependencies for ${this.package}`);
+            }
+         } else {
+            console.warn(`Package directory not found when attempting dev install: ${pkgJsonPath}`);
+         }
+      } catch (e) {
+         console.warn(`Failed to install devDependencies: ${e.message}`);
+      }
    }
 
    /**
@@ -515,6 +555,7 @@ export class Runner extends RunnerResult {
          } else {
             console.warn(`Module does not export any callables`);
          }
+         console.log('[Reason for failure] No exported callables found');
          throw new Error(`No exported callables found`);
       }
 
@@ -740,6 +781,7 @@ export class Runner extends RunnerResult {
             }
          }
       }
+      console.log('[Reason for failure] No working exploit found');
       exploitAttempt.failureMessage = NO_WORKING_EXPLOIT;
       return null;
    }
@@ -757,6 +799,8 @@ export class Runner extends RunnerResult {
       await this.enrichAPIReferences(source);
 
       const sarifFile = new SarifFile(this.codeQL);
+
+      // return sarifFile; // noTaint ablation
 
       const taintPath = new TaintPath(sarifFile, source, null, null, [source.callable.location]);
       taintPath.vulnerabilityType = vulnerabilityType;
@@ -809,14 +853,14 @@ export class Runner extends RunnerResult {
          /**
           * @type {RuntimeInfo}
           */
-         const runtimeInfo = await this.oracle({type: MessageType.VERIFY, content}, vulnerabilityType);
+         const runtimeInfo = await this.oracle({ type: MessageType.VERIFY, content }, vulnerabilityType);
 
          if (runtimeInfo.confirmed) {
             return new ExploitSuccessResult(
                exploit,
                currentPrompt,
-               {source},
-               createTestFile(this, {source, vulnerabilityType}, exploit),
+               { source },
+               createTestFile(this, { source, vulnerabilityType }, exploit),
             );
          }
 
@@ -865,7 +909,7 @@ export class Runner extends RunnerResult {
          scannedSources.push(...newSources);
 
          const sarif = this.codeQL.analyse(
-            new CodeQLQueryBuilder({sources: newSources, vulnerabilityType}));
+            new CodeQLQueryBuilder({ sources: newSources, vulnerabilityType }));
          if (sarif.taintPaths.length > 0) {
             const fullTaintPaths = [];
             for (const taintPath of sarif.getTaintPathsInOrder(executedSources)) {
@@ -886,7 +930,7 @@ export class Runner extends RunnerResult {
           * @type {LocationRange[]}
           */
          const taintSteps = [source.callable.location,
-            ...executedFunctions.map((fn) => LocationRange.fromBabelNode(fn.node))
+         ...executedFunctions.map((fn) => LocationRange.fromBabelNode(fn.node))
          ].filter(loc => loc.filePath.startsWith(this.package.asPath()));
 
          // Update taint path
@@ -927,7 +971,7 @@ export class Runner extends RunnerResult {
     */
    async analyseSources(sources, fallbackLevels, vulnerabilityType) {
       console.info(`analyseSources(fallbackLevels=${fallbackLevels}, vulnerabilityType=${vulnerabilityType.label}, sources=${sources.map(s => s.stringified).join(", ")})`);
-
+      // return []; // noTaint ablation
       if (fallbackLevels.includes(TaintPathType.DEFAULT)) {
          console.info(
             `Running with default taint propagator ${sources.map(s => s.stringified).join(", ")}.`
@@ -1039,8 +1083,12 @@ export class Runner extends RunnerResult {
          oracleProcess.on("error", (err) => {
             reject(err);
          });
-         oracleProcess.on("exit", (code) => {
-            reject(new Error(`Verifier (pid=${pid}) exited with code ${code}`));
+         oracleProcess.on("exit", (code, signal) => {
+            if (code === null && signal) {
+               reject(new Error(`Verifier (pid=${pid}) killed by signal ${signal}`));
+            } else {
+               reject(new Error(`Verifier (pid=${pid}) exited with code ${code}`));
+            }
          });
 
          /**
@@ -1085,7 +1133,7 @@ export class Runner extends RunnerResult {
             try {
                switch (msg.type) {
                   case MessageType.RESULT:
-                     const {runtimeInfo} = msg.content;
+                     const { runtimeInfo } = msg.content;
                      runtimeInfo.consoleMessages = oracleProcessMessages;
                      resolve(runtimeInfo);
                      break;
@@ -1167,12 +1215,12 @@ export class Runner extends RunnerResult {
                let runtimeInfo;
                try {
                   runtimeInfo = await self.oracle({
-                        type: MessageType.VERIFY,
-                        content: {
-                           source: taintPath.source,
-                           exploit: nextExploit,
-                        },
+                     type: MessageType.VERIFY,
+                     content: {
+                        source: taintPath.source,
+                        exploit: nextExploit,
                      },
+                  },
                      taintPath.vulnerabilityType
                   );
                } catch (e) {
@@ -1258,7 +1306,7 @@ export class Runner extends RunnerResult {
       if (!existsSync(srcRoot)) {
          console.info(`Preparing srcRoot for analysis`);
          const nodeDir = `${this.baseDir}/node_modules/${this.package.asPath()}`;
-         const jsFiles = recListFiles(nodeDir, /\.(js|mjs|cjs)$/);
+         const jsFiles = recListFiles(nodeDir, /\.(js|mjs|cjs|ts|tsx)$/);
          for (const file of jsFiles) {
             try {
                const newContent = await removeSourceURLComments(readFileSync(file, "utf8"));
@@ -1267,7 +1315,13 @@ export class Runner extends RunnerResult {
                console.error(`Error while removing comments from ${file}: ${e}`);
             }
          }
-         recCopy(`${this.baseDir}/node_modules`, srcRoot);
+         recCopy(`${this.baseDir}/node_modules/${this.package.asPath()}`, `${srcRoot}/${this.package.asPath()}`);
+         // Remove `node_modules` directory
+         try {
+            rmdirSync(`${srcRoot}/${this.package.asPath()}/node_modules`, { recursive: true });
+         } catch (e) {
+            console.error(`Error while removing node_modules directory: ${e}`);
+         }
       }
       return srcRoot;
    }

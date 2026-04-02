@@ -1,9 +1,9 @@
-import parser, {parse} from "@babel/parser";
+import parser, { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 import generate from "@babel/generator";
-import formatEsLint from "../runners/eslintFormat.js";
+import formatCode from "../runners/prettierFormat.js";
 import LocationRange from "../models/locationRange.js";
-import {esc, firstNonEmpty} from "./utils.js";
+import { esc, firstNonEmpty } from "./utils.js";
 
 /**
  * @typedef {import("@babel/parser").ParserOptions} ParserOptions
@@ -38,10 +38,15 @@ export function getBabelNodeIdentifierName(node) {
  */
 export function doParse(code) {
    try {
-      return parser.parse(code, {});
+      return parser.parse(code, {
+         plugins: ["typescript", "jsx"],
+         sourceType: "module",
+      });
    } catch (e) {
       return parser.parse(code, {
          errorRecovery: true,
+         plugins: ["typescript", "jsx"],
+         sourceType: "module",
       });
    }
 }
@@ -147,6 +152,7 @@ export function extractClassMethods(ast) {
  */
 export async function removeSourceURLComments(code) {
    const ast = parse(code, {
+      plugins: ["typescript", "jsx"],
       sourceType: "module",
       errorRecovery: true,
    });
@@ -172,7 +178,7 @@ export async function removeSourceURLComments(code) {
       },
       code,
    );
-   return await formatEsLint(output.code);
+   return await formatCode(output.code);
 }
 
 /**
