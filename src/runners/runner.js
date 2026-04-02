@@ -800,7 +800,9 @@ export class Runner extends RunnerResult {
 
       const sarifFile = new SarifFile(this.codeQL);
 
-      // return sarifFile; // noTaint ablation
+      if (this.opts.refiner === "noTaint") {
+         return sarifFile; // noTaint ablation
+      }
 
       const taintPath = new TaintPath(sarifFile, source, null, null, [source.callable.location]);
       taintPath.vulnerabilityType = vulnerabilityType;
@@ -971,7 +973,9 @@ export class Runner extends RunnerResult {
     */
    async analyseSources(sources, fallbackLevels, vulnerabilityType) {
       console.info(`analyseSources(fallbackLevels=${fallbackLevels}, vulnerabilityType=${vulnerabilityType.label}, sources=${sources.map(s => s.stringified).join(", ")})`);
-      // return []; // noTaint ablation
+      if (this.opts.refiner === "noTaint") {
+         return []; // noTaint ablation
+      }
       if (fallbackLevels.includes(TaintPathType.DEFAULT)) {
          console.info(
             `Running with default taint propagator ${sources.map(s => s.stringified).join(", ")}.`

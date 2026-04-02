@@ -1,59 +1,59 @@
-# Generating Proof-of-Concept Exploits for Vulnerable npm Packages
+# PoCGen: Generating Proof-of-Concept Exploits for Vulnerable npm Packages
 
-This repository contains a tool to generate proof-of-concept exploits for vulnerable npm packages.
+This repository contains the tool to generate proof-of-concept exploits for vulnerable npm packages, in addition, it contains the evaluation results, LLM prompts and responses, and the datasets used for the evaluation.
 
-### Building the Docker Image
+## Building the Docker Image
 
 1. Clone the repository:
 
 ```sh
-$ git clone https://github.com/sola-st/master-thesis-deniz-simsek gen-poc
+git clone https://github.com/sola-st/PoCGen
 ```
 
 2. Install dependencies:
 
 ```sh
-$ cd gen-poc
-$ npm install
+cd PoCGen
+npm install
 ```
 
 3. Build the docker images:
 
 ```sh
-$ docker build -t patched_node -f patched_node.Dockerfile .
-$ docker build -t gen-poc_mnt .
+docker build -t patched_node -f patched_node.Dockerfile .
+docker build -t gen-poc_mnt .
 ```
 
-### Setup
+## Setup
 
 The repository contains a wrapper script to run the tool in a docker container.
 The script requires an `.env` file in the current directory with the following content:
 
 ```
-OPENAI_API_KEY=sk-proj-xxx
+OPENAI_API_KEY=sk-proj-xxx    # required for LLM calls
 GITHUB_API_KEY=github_pat_xxx # required for fetching GHSA-IDs
 ```
 
 The only required argument is the vulnerability ID, which should be a GitHub Advisory ID or a Snyk ID.
 The tool will automatically fetch the vulnerability report from the corresponding API/ scrape it from the website.
 
-### Create a PoC for a vulnerable package
+## Create a PoC for a vulnerable package
 
 Run this script from the repository root:
 
 ```sh
-$ ./run-mnt.sh output node index.js create -v GHSA-m7p2-ghfh-pjvx
+./run-mnt.sh output node index.js create -v GHSA-m7p2-ghfh-pjvx
 ```
 
 This will create a test for [GHSA-m7p2-ghfh-pjvx](https://github.com/advisories/GHSA-m7p2-ghfh-pjvx) in
 `./output/GHSA-m7p2-ghfh-pjvx/test.js`.
 
-### Running the test
+## Running the test
 
 For most vulnerabilities, it is recommended to run the test using the provided docker image:
 
 ```sh
-$ ./run-mnt.sh output node --test /output/<advisoryId>/test.js
+./run-mnt.sh output node --test /output/<advisoryId>/test.js
 ```
 
 For **ReDoS** vulnerabilities, the test should be run with the following flags:
@@ -65,54 +65,59 @@ For **ReDoS** vulnerabilities, the test should be run with the following flags:
 For vulnerabilities that involve long-running tasks (e.g. web servers), run the test with the following flags:
 
 ```sh
-$ ./run-mnt.sh output node --test --test-force-exit /output/<advisoryId>/test.js
+./run-mnt.sh output node --test --test-force-exit /output/<advisoryId>/test.js
 ```
 
 ## Reproducing the Evaluation Results
 
+> Note that running the following commands will run PoCGen or the baseline on large datasets (more than 100 vulnerabilities), which takes multiple hours and incurs costs for API calls to an LLM.
+> We have included the interactions with the LLM and all the logs and metadata of the runs in the `eval_results` directory.
+
 First, follow the installation instructions above.
 
-### RQ1: How effective is the approach?
+### RQ1: Effectiveness
+
+To run PoCGen on the SecBench.js dataset, use the following command:
 
 ```sh
-$ ./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all
+./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all
 ```
 
-> Note that in our experiments, the approach was run twice (without caching prompts).
+This creates a directory under `output` with the IDs of each vulnerability as a subdirectory.
+Each subdirectory contains the vulnerable package, an execution log file named `output_*.log` (showing the steps and execution outputs), an LLM interaction log file named `prompt.json` (showing the LLM interactions with all the metadata), a json file contaning all the information about the attempt named `RunnerResult_*.json`, and the proof-of-concept exploit as a test file named `test.js`.
 
-<div style="text-align: center;">
-  <img src="figures/SecBench.js_tables.png" width="400px"/>
-</div>
-
-### RQ2: What is the impact of single components to the overall effectiveness of the approach?
-
-The following table shows the different refiner configurations and which components are enabled or disabled.
-
-| Refiner | Taint Path | Reference Exploits/ API Usage | ErrorRefiner | DebugRefiner | ContextRefiner |
-|---------|------------|-------------------------------|--------------|--------------|----------------|
-| $C_0$   | ❌          | ✅                             | ✅            | ✅            | ❌              |
-| $C_1$   | ✅          | ❌                             | ✅            | ✅            | ✅              |
-| $C_2$   | ✅          | ✅                             | ❌            | ✅            | ✅              |
-| $C_3$   | ✅          | ✅                             | ✅            | ❌            | ✅              |
-| $C_4$   | ✅          | ✅                             | ✅            | ✅            | ❌              |
-
-A refiner can be specified using `--refiner <refiner>`, where `<refiner>` is one of the following values: `C0Refiner`,
-`C1Refiner`, `C2Refiner`, `C3Refiner`, `C4Refiner`.
-
-### RQ3: How efficient is the approach in terms of cost and time?
-
-To reproduce the results for RQ3, run the following command:
+To run Mini-SWE-agent on the SecBench.js dataset, use the following command:
 
 ```sh
-$ ./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all
+./run-mnt.sh output node index.js pipeline --runner RunnerMiniSWEAgent -v dataset/SecBench.js/*\.all
 ```
 
-### RQ4: How well does the approach generalize to newer vulnerabilities?
+This creates the same directory structure, with the difference that it creates a `mini_swe_workspace` subdirectory for each vulnerability and stores the PoC exploit in it as `poc.js`.
+
+
+### RQ2: Ablation Study
+
+A refiner can be specified using `--refiner <refiner>`. I.e.,
+```sh
+./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all --refiner C0Refiner
+```
+The following values were used in the evaluation:
+- `noTaint` for noTaint
+- `C7Refiner` for noUsageSnippets
+- `C6Refiner` for noFewShot
+- `C3Refiner` for noDebugger
+- `C2Refiner` for noErrorRefiner
+
+
+
+### RQ3: Costs
+
+For each vulnerability the token costs are stored in the `RunnerResult_*.json` file under the `model.totalPromptTokens` and `model.totalCompletionTokens` fields for request and response tokens respectively.
+
+
+### RQ4: Newer Vulnerabilities
 
 ```sh
-$ ./run-mnt.sh output node index.js pipeline -v dataset/CWEBench.js/*\.all
+./run-mnt.sh output node index.js pipeline -v dataset/ghsa_2025-2026.txt
 ```
 
-<div style="text-align: center;">
-  <img src="figures/CWEBench.js_tables.png" width="400px"/>
-</div>
