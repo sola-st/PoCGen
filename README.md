@@ -8,12 +8,12 @@ This repository contains the tool to generate proof-of-concept exploits for vuln
 
 ```sh
 git clone https://github.com/sola-st/PoCGen
+cd PoCGen
 ```
 
 2. Install dependencies:
 
 ```sh
-cd PoCGen
 npm install
 ```
 
