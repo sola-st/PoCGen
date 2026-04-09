@@ -19,6 +19,8 @@ npm install
 
 3. Build the docker images:
 
+> You need `docker` installed.
+
 ```sh
 docker build -t patched_node -f patched_node.Dockerfile .
 docker build -t gen-poc_mnt .
@@ -114,8 +116,24 @@ The following values were used in the evaluation:
 
 For each vulnerability the token costs are stored in the `RunnerResult_*.json` file under the `model.totalPromptTokens` and `model.totalCompletionTokens` fields for request and response tokens respectively.
 
+To get the average token costs for PoCGen, you can run
+
+```sh
+python scripts/count_tokens.py <output_directory>
+```
+`<output_directory>` can be any of the subdirectories in `eval_results` of the format `pocgen_*`.
+
+To get the average costs for Mini-SWE-agent, you can run
+
+```sh
+python scripts/count_agent_tokens.py <output_directory>
+```
+`<output_directory>` can be any of the subdirectories in `eval_results` of the format `minisweagent_*`.
+
 
 ### RQ4: Newer Vulnerabilities
+
+To run PoCGen on vulnerabilities reported in 2025-2026, use the following command:
 
 ```sh
 ./run-mnt.sh output node index.js pipeline -v dataset/ghsa_2025-2026.txt
