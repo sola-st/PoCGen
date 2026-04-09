@@ -73,9 +73,9 @@ For vulnerabilities that involve long-running tasks (e.g. web servers), run the 
 ## Reproducing the Evaluation Results
 
 > Note that running the following commands will run PoCGen or the baseline on large datasets (more than 100 vulnerabilities), which takes multiple hours and incurs costs for API calls to an LLM.
-> We have included the interactions with the LLM and all the logs and metadata of the runs in the `eval_results` directory.
+> We have published the interactions with the LLM and all the logs and metadata of the runs as a [record on Zenodo](https://doi.org/10.5281/zenodo.19482271).
 
-First, follow the installation instructions above.
+To reproduce the evaluation results, follow the installation instructions above, and then the instructions below.
 
 ### RQ1: Effectiveness
 

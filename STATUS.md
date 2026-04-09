@@ -5,4 +5,4 @@ Available
 The artifact provides a docker image with all the dependencies and setup required to run the tool. 
 Users can run the tool using a single-line command as shown in the README.md file.
 
-All execution logs, LLM interactions, and metadata are included.
+All execution logs, LLM interactions, and metadata are available on Zenodo: https://doi.org/10.5281/zenodo.19482271
