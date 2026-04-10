@@ -19,14 +19,14 @@ npm install
 
 > You need `docker` installed for steps below.
 
-3. Option 1: Build the docker images:
+3. Option 1: Build the docker images (this may take a while):
 
 ```sh
 docker build -t patched_node -f patched_node.Dockerfile .
 docker build -t gen-poc_mnt .
 ```
 
-3. Option 2: Use the pre-built docker image:
+3. Option 2: Use the pre-built docker image (recommended):
 
 ```sh
 docker pull aryaze/pocgen:v1.0
@@ -82,7 +82,7 @@ For vulnerabilities that involve long-running tasks (e.g. web servers), run the 
 We provide 3 levels for reproducing results based on the time and monetary costs:
 1. Inspecting and visualizing the results based on logs from our runs (no LLM costs involved, and very low execution time).
 2. Running PoCGen on a single vulnerability (low LLM costs, and low execution time).
-3. Running PoCGen on the SecBench.js dataset (high LLM costs, and high execution time).
+3. Running PoCGen on the full dataset (high LLM costs, and high execution time).
 
 To follow on level 1, download the evaluation results from [Zenodo](https://doi.org/10.5281/zenodo.19482271), and then follow the instructions labeled with "level 1" below.
 
