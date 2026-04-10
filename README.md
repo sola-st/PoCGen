@@ -2,7 +2,7 @@
 
 This repository contains the tool to generate proof-of-concept exploits for vulnerable npm packages, in addition, it contains the evaluation results, LLM prompts and responses, and the datasets used for the evaluation.
 
-## Building the Docker Image
+## Docker Image
 
 1. Clone the repository:
 
@@ -17,13 +17,20 @@ cd PoCGen
 npm install
 ```
 
-3. Build the docker images:
+> You need `docker` installed for steps below.
 
-> You need `docker` installed.
+3. Option 1: Build the docker images:
 
 ```sh
 docker build -t patched_node -f patched_node.Dockerfile .
 docker build -t gen-poc_mnt .
+```
+
+3. Option 2: Use the pre-built docker image:
+
+```sh
+docker pull aryaze/pocgen:v1.0
+docker tag aryaze/pocgen:v1.0 gen-poc_mnt
 ```
 
 ## Setup
@@ -33,10 +40,10 @@ The script requires an `.env` file in the current directory with the following c
 
 ```
 OPENAI_API_KEY=sk-proj-xxx    # required for LLM calls
-GITHUB_API_KEY=github_pat_xxx # required for fetching GHSA-IDs
+GITHUB_API_KEY=github_pat_xxx # required for fetching vulnerabilities from GitHub Security Advisories database
 ```
 
-The only required argument is the vulnerability ID, which should be a GitHub Advisory ID or a Snyk ID.
+The only required argument is the vulnerability ID, which can be a GitHub Advisory ID or a Snyk ID.
 The tool will automatically fetch the vulnerability report from the corresponding API/ scrape it from the website.
 
 ## Create a PoC for a vulnerable package
@@ -72,14 +79,20 @@ For vulnerabilities that involve long-running tasks (e.g. web servers), run the 
 
 ## Reproducing the Evaluation Results
 
-> Note that running the following commands will run PoCGen or the baseline on large datasets (more than 100 vulnerabilities), which takes multiple hours and incurs costs for API calls to an LLM.
-> We have published the interactions with the LLM and all the logs and metadata of the runs as a [record on Zenodo](https://doi.org/10.5281/zenodo.19482271).
+We provide 3 levels for reproducing results based on the time and monetary costs:
+1. Inspecting and visualizing the results based on logs from our runs (no LLM costs involved, and very low execution time).
+2. Running PoCGen on a single vulnerability (low LLM costs, and low execution time).
+3. Running PoCGen on the SecBench.js dataset (high LLM costs, and high execution time).
 
-To reproduce the evaluation results, follow the installation instructions above, and then the instructions below.
+To follow on level 1, download the evaluation results from [Zenodo](https://doi.org/10.5281/zenodo.19482271), and then follow the instructions labeled with "level 1" below.
+
+To evaluate on level 2, follow the instructions in the previous sections.
+
+To evaluate on level 3, follow the instructions in the "Docker Image" and "Setup" sections, and then follow the instructions labeled with "level 3" below.
 
 ### RQ1: Effectiveness
 
-To run PoCGen on the SecBench.js dataset, use the following command:
+(level 3) To run PoCGen on the SecBench.js dataset, use the following command:
 
 ```sh
 ./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all
@@ -88,7 +101,7 @@ To run PoCGen on the SecBench.js dataset, use the following command:
 This creates a directory under `output` with the IDs of each vulnerability as a subdirectory.
 Each subdirectory contains the vulnerable package, an execution log file named `output_*.log` (showing the steps and execution outputs), an LLM interaction log file named `prompt.json` (showing the LLM interactions with all the metadata), a json file contaning all the information about the attempt named `RunnerResult_*.json`, and the proof-of-concept exploit as a test file named `test.js`.
 
-To run Mini-SWE-agent on the SecBench.js dataset, use the following command:
+(level 3) To run Mini-SWE-agent on the SecBench.js dataset, use the following command:
 
 ```sh
 ./run-mnt.sh output node index.js pipeline --runner RunnerMiniSWEAgent -v dataset/SecBench.js/*\.all
@@ -96,10 +109,12 @@ To run Mini-SWE-agent on the SecBench.js dataset, use the following command:
 
 This creates the same directory structure, with the difference that it creates a `mini_swe_workspace` subdirectory for each vulnerability and stores the PoC exploit in it as `poc.js`.
 
+(level 1) The generated PoC exploits can be found in `eval_results/pocgen_*/<vulnerability_id>/test.js` and `eval_results/minisweagent_*/<vulnerability_id>/mini_swe_workspace/poc.js`.
+
 
 ### RQ2: Ablation Study
 
-A refiner can be specified using `--refiner <refiner>`. I.e.,
+(level 3) A refiner can be specified using `--refiner <refiner>`. I.e.,
 ```sh
 ./run-mnt.sh output node index.js pipeline -v dataset/SecBench.js/*\.all --refiner C0Refiner
 ```
@@ -110,9 +125,12 @@ The following values were used in the evaluation:
 - `C3Refiner` for noDebugger
 - `C2Refiner` for noErrorRefiner
 
+(level 1) The generated PoC exploits of the ablation study can be found in `eval_results/pocgen_<refiner name>/<vulnerability_id>/test.js`.
 
 
 ### RQ3: Costs
+
+(level 1 & 3)
 
 For each vulnerability the token costs are stored in the `RunnerResult_*.json` file under the `model.totalPromptTokens` and `model.totalCompletionTokens` fields for request and response tokens respectively.
 
@@ -133,9 +151,11 @@ python scripts/count_agent_tokens.py <output_directory>
 
 ### RQ4: Newer Vulnerabilities
 
-To run PoCGen on vulnerabilities reported in 2025-2026, use the following command:
+(level 3) To run PoCGen on vulnerabilities reported in 2025-2026, use the following command:
 
 ```sh
 ./run-mnt.sh output node index.js pipeline -v dataset/ghsa_2025-2026.txt
 ```
+
+(level 1) The generated PoC exploits can be found in `eval_results/pocgen_2025-2026/<vulnerability_id>/test.js`.
 
