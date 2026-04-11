@@ -13,24 +13,26 @@ cd PoCGen
 
 2. Install dependencies:
 
+> You need Node.js and npm installed.
+
 ```sh
 npm install
 ```
 
 > You need `docker` installed for steps below.
 
-3. Option 1: Build the docker images (this may take a while):
-
-```sh
-docker build -t patched_node -f patched_node.Dockerfile .
-docker build -t gen-poc_mnt .
-```
-
-3. Option 2: Use the pre-built docker image (recommended):
+3. Option 1: Use the pre-built docker image (recommended):
 
 ```sh
 docker pull aryaze/pocgen:v1.0
 docker tag aryaze/pocgen:v1.0 gen-poc_mnt
+```
+
+3. Option 2: Build the docker images (this may take a while):
+
+```sh
+docker build -t patched_node -f patched_node.Dockerfile .
+docker build -t gen-poc_mnt .
 ```
 
 ## Environment Variables

@@ -27,7 +27,7 @@
     "prettier": "^3.7.4",
     "promise.timeout": "^1.2.0",
     "semver": "^7.6.3",
-    "sqlite3": "^5.1.7",
+    "sqlite3": "^6.0.1",
     "stacktrace-parser": "^0.1.11",
     "stopword": "^3.1.4",
     "stream-json": "^1.9.1",

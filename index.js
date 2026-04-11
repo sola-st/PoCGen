@@ -13,7 +13,6 @@ import { loadRefiners } from "./src/prompting/promptRefiner.js";
 import { loadModels } from "./src/model/model.js";
 import DefaultRefiner from "./src/prompting/refiners/default.refiner.js";
 import { fileURLToPath } from "node:url";
-import RunnerAgent from "./src/runners/runnerAgent.js";
 import RunnerMiniSWEAgent from "./src/runners/runnerMiniSWEAgent.js";
 
 function intParser(value) {
@@ -153,7 +152,7 @@ function addBaseOptions(command) {
          new Option(
             "-runner, --runner <runner>",
             `runner type`,
-         ).default(RunnerSourceNotExported.name).choices([RunnerSourceNotExported.name, RunnerAgent.name, RunnerMiniSWEAgent.name])
+         ).default(RunnerSourceNotExported.name).choices([RunnerSourceNotExported.name, RunnerMiniSWEAgent.name])
       );
    return command.allowUnknownOption(false);
 }
@@ -169,7 +168,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       .option("-exploitBaseDir, --exploitBaseDir <exploitBaseDir>", "downstream package base directory")
       .argument("<advisoryId>", "GHSA/ Snyk id of the vulnerability")
       .action((advisoryId, opts) => {
-         const runnerCls = opts.runner === RunnerAgent.name ? RunnerAgent : (opts.runner === RunnerMiniSWEAgent.name ? RunnerMiniSWEAgent : RunnerSourceNotExported);
+         const runnerCls = opts.runner === RunnerMiniSWEAgent.name ? RunnerMiniSWEAgent : RunnerSourceNotExported;
          opts.advisoryId = advisoryId;
          if (opts.upstream && opts.exploitBaseDir) {
             new runnerCls(opts).start().catch(console.error).then(console.log);

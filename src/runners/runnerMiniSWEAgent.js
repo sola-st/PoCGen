@@ -109,9 +109,6 @@ export default class RunnerMiniSWEAgent extends Runner {
         execSync("mini-extra config set MSWEA_MINI_CONFIG_PATH " + yamlFilepath, { stdio: "inherit" });
         execSync("mini-extra config set MSWEA_GLOBAL_CALL_LIMIT 30", { stdio: "inherit" });
 
-        const defaultEnv = readFileSync("/root/.config/mini-swe-agent/.env", "utf8");
-        console.info(defaultEnv);
-
         console.info(`Starting mini-swe-agent via CLI: mini ${args.join(" ")}`);
 
         const self = this;
