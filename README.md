@@ -1,8 +1,8 @@
 # PoCGen: Generating Proof-of-Concept Exploits for Vulnerable npm Packages
 
-This repository contains the tool to generate proof-of-concept exploits for vulnerable npm packages, in addition, it contains the evaluation results, LLM prompts and responses, and the datasets used for the evaluation.
+This repository contains the tool to generate proof-of-concept exploits for vulnerable npm packages, in addition, it contains the datasets used for the evaluation.
 
-## Docker Image
+## Setup
 
 1. Clone the repository:
 
@@ -33,7 +33,7 @@ docker pull aryaze/pocgen:v1.0
 docker tag aryaze/pocgen:v1.0 gen-poc_mnt
 ```
 
-## Setup
+## Environment Variables
 
 The repository contains a wrapper script to run the tool in a docker container.
 The script requires an `.env` file in the current directory with the following content:
@@ -77,6 +77,24 @@ For vulnerabilities that involve long-running tasks (e.g. web servers), run the 
 ./run-mnt.sh output node --test --test-force-exit /output/<advisoryId>/test.js
 ```
 
+## Repository Structure
+
+The repository contains
+- the source code of PoCGen in `src/`
+    - `analysis`: static and dynamic analyses used in PoCGen
+    - `model`: LLM models and utilities
+    - `models`: Javascript classes
+    - `npm`: utilities for dealing with npm packages
+    - `pipeline`: the main pipeline for generating PoC exploits
+    - `prompting`: prompt templates, and prompt generation utilities
+    - `resources`: CodeQL query templates, and the command injection code
+    - `runners`: various runners (e.g., the agent) used to generate PoC exploits
+    - `utils`: general utility functions
+    - `vulnerability-databases`: scripts to retrieve vulnerability data from various sources
+- the datasets used for the evaluation in `dataset/`
+- the scripts to summarize, aggregate, and visualize the results in `scripts/`
+- some helper functions in `lib/`
+
 ## Reproducing the Evaluation Results
 
 We provide 3 levels for reproducing results based on the time and monetary costs:
@@ -88,7 +106,7 @@ To follow on level 1, download the evaluation results from [Zenodo](https://doi.
 
 To evaluate on level 2, follow the instructions in the previous sections.
 
-To evaluate on level 3, follow the instructions in the "Docker Image" and "Setup" sections, and then follow the instructions labeled with "level 3" below.
+To evaluate on level 3, follow the instructions in the "Setup" section, and then follow the instructions labeled with "level 3" below.
 
 ### RQ1: Effectiveness
 
